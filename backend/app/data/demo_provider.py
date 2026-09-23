@@ -121,50 +121,107 @@ class DemoDataProvider(DataProvider):
             ))
         return result
 
+    def _get_region(self, lat: float, lon: float) -> str:
+        """Classify coordinate into one of 5 oceanographic regimes."""
+        # Somali / Western Arabian Sea upwelling corridor
+        if lon < 60.0 and 5.0 <= lat <= 18.0:
+            return "somali_upwelling"
+        # Equatorial Indian Ocean
+        if lat < 8.5:
+            return "equatorial_io"
+        # Arabian Sea
+        if lon < 77.5:
+            return "arabian_sea"
+        # Bay of Bengal
+        return "bay_of_bengal"
+
     def _calculate_physical_surface(self, lat: float, lon: float) -> Tuple[float, float, float, float, float, float, float]:
         """
-        Computes physically consistent surface variables:
+        Computes physically consistent surface variables per oceanographic regime:
         SST, SSS, SSH, Current_U, Current_V, Wind_U, Wind_V.
+        Each region has distinctly different surface signatures.
         """
-        # 1. Base SST: Warmer in southern equatorial (29.5°C), cooler in north (25.5°C)
-        base_sst = 29.8 - 0.22 * (lat - 5.0)
-        # Upwelling near Somalia / Western Arabian Sea
-        if lon < 60.0 and lat < 18.0:
-            upwelling_intensity = (60.0 - lon) / 15.0 * (1.0 - abs(lat - 12.0) / 10.0)
-            base_sst -= max(0.0, upwelling_intensity * 2.8)
-        # Bay of Bengal warm pool
-        if 80.0 <= lon <= 95.0 and 8.0 <= lat <= 18.0:
-            base_sst += 0.6 * math.sin((lon - 80.0) / 15.0 * math.pi)
+        region = self._get_region(lat, lon)
 
-        # 2. Base SSS: High salinity in evaporative Arabian Sea (36.5 PSU),
-        # low salinity in freshwater-fed Bay of Bengal (31.5 - 33.0 PSU)
-        if lon < 77.5:
-            # Arabian Sea
-            base_sss = 35.6 + 0.05 * (lat - 5.0) + 0.02 * (77.5 - lon)
+        # ── 1. Region-specific base SST ─────────────────────────────────────────
+        if region == "somali_upwelling":
+            # Somali coast: intense SW monsoon-driven coastal upwelling → very cool
+            upwelling_intensity = max(0.0, (60.0 - lon) / 15.0) * (1.0 - abs(lat - 11.0) / 8.0)
+            base_sst = 25.5 - upwelling_intensity * 3.8 - 0.15 * (lat - 5.0)
+            base_sst = max(22.0, base_sst)
+        elif region == "arabian_sea":
+            # Central/Eastern Arabian Sea: moderately warm surface, strong evaporation
+            base_sst = 28.6 - 0.18 * (lat - 5.0) + 0.04 * (lon - 60.0)
+        elif region == "bay_of_bengal":
+            # BoB: very warm surface due to river-fed stratified barrier layer
+            base_sst = 29.2 + 0.5 * math.sin((lon - 80.0) / 18.0 * math.pi) - 0.10 * (lat - 8.0)
+            base_sst = min(30.8, base_sst)
+        else:  # equatorial_io
+            # Equatorial: hottest SST, Wyrtki Jet driven eastward transport
+            base_sst = 29.8 + 0.3 * math.sin(lon * 0.08) - 0.05 * abs(lat - 5.0)
+            base_sst = min(31.0, base_sst)
+
+        # ── 2. Region-specific SSS ──────────────────────────────────────────────
+        if region == "somali_upwelling":
+            # Upwelled subsurface water: saltier than surface average
+            base_sss = 36.8 + 0.06 * (lat - 8.0)
+        elif region == "arabian_sea":
+            # High evaporation, no major river input → highest salinity basin
+            base_sss = 36.4 + 0.04 * (lat - 5.0) + 0.015 * (77.5 - lon)
+        elif region == "bay_of_bengal":
+            # Massive river discharge (Ganges, Brahmaputra) → lowest salinity
+            base_sss = 32.5 - 0.15 * (lat - 8.0) - 0.04 * (lon - 77.5)
+            if lat > 18.0 and lon > 85.0:
+                base_sss -= 2.2  # Northern BoB river plumes
+            base_sss = max(29.0, base_sss)
+        else:  # equatorial_io
+            # Transitional zone between AS and BoB
+            base_sss = 34.2 - 0.08 * (lat - 4.0)
+
+        # ── 3. SSH (mesoscale eddy superposition) ──────────────────────────────
+        # Region base offsets: upwelling zones have negative SSH (divergence)
+        if region == "somali_upwelling":
+            base_ssh = -0.12 + 0.04 * math.sin(lat * 0.3)
+        elif region == "arabian_sea":
+            base_ssh = 0.05 * math.sin(lat * 0.2) + 0.03 * math.cos(lon * 0.15)
+        elif region == "bay_of_bengal":
+            base_ssh = 0.08 * math.sin(lat * 0.18) + 0.04 * math.cos(lon * 0.12)
         else:
-            # Bay of Bengal
-            base_sss = 33.2 - 0.12 * (lat - 8.0) - 0.03 * (lon - 77.5)
-            # River mouths in northern BoB
-            if lat > 18.0 and lon > 86.0:
-                base_sss -= 1.8
+            base_ssh = 0.14 * math.sin(lat * 0.15)  # Wyrtki Jet sea-level signal
 
-        # 3. Base SSH with mesoscale eddy superposition
-        base_ssh = 0.05 * math.sin(lat * 0.2) + 0.03 * math.cos(lon * 0.15)
         for eddy in self.eddies:
             dist = math.hypot(lat - eddy["lat"], lon - eddy["lon"])
             if dist < eddy["r"] * 2.0:
                 anomaly = eddy["amp"] * math.exp(-0.5 * (dist / eddy["r"]) ** 2)
                 base_ssh += anomaly
-                base_sst += anomaly * 1.5  # Warm-core / cold-core eddy thermal coupling
+                base_sst += anomaly * 1.5
 
-        # 4. Surface Winds (Southwest Monsoon Intermonsoon setup: southwesterlies)
-        wind_u = 4.5 + 2.0 * math.sin(lat * 0.15) + 0.8 * math.cos(lon * 0.2)
-        wind_v = 3.2 + 1.8 * math.cos(lat * 0.12) - 0.5 * math.sin(lon * 0.1)
+        # ── 4. Region-specific winds ────────────────────────────────────────────
+        if region == "somali_upwelling":
+            # Strong SW monsoon Somali Jet (~12-15 m/s)
+            wind_u = 11.5 + 2.5 * math.sin(lat * 0.18)
+            wind_v = 4.2 + 1.2 * math.cos(lat * 0.2)
+        elif region == "arabian_sea":
+            wind_u = 4.5 + 2.0 * math.sin(lat * 0.15) + 0.8 * math.cos(lon * 0.2)
+            wind_v = 3.2 + 1.8 * math.cos(lat * 0.12) - 0.5 * math.sin(lon * 0.1)
+        elif region == "bay_of_bengal":
+            # Weaker, more variable monsoon winds
+            wind_u = 3.2 + 1.5 * math.sin(lat * 0.12) - 0.6 * math.cos(lon * 0.15)
+            wind_v = 2.8 + 1.2 * math.cos(lat * 0.1)
+        else:  # equatorial_io
+            # Wyrtki Jet: strong eastward equatorial winds
+            wind_u = 6.8 + 2.0 * math.cos(lat * 0.5)
+            wind_v = 1.2 + 0.8 * math.sin(lon * 0.1)
 
-        # 5. Surface Geostrophic & Wind-driven Currents
+        # ── 5. Surface currents ─────────────────────────────────────────────────
         current_u = 0.18 * math.sin(lat * 0.3) + 0.12 * (wind_u / 10.0)
         current_v = 0.14 * math.cos(lon * 0.25) + 0.10 * (wind_v / 10.0)
-        # Eddy circulation
+        if region == "somali_upwelling":
+            current_u += 0.45  # Somali Current northward transport
+            current_v -= 0.12
+        elif region == "equatorial_io":
+            current_u += 0.62  # Wyrtki Jet eastward jet
+
         for eddy in self.eddies:
             dist = math.hypot(lat - eddy["lat"], lon - eddy["lon"])
             if dist < eddy["r"] * 2.0 and dist > 0.1:
@@ -184,34 +241,47 @@ class DemoDataProvider(DataProvider):
             round(wind_v, 2)
         )
 
-    def _synthesize_temperature_at_depth(self, sst: float, ssh: float, depth: int, lat: float) -> float:
+    def _synthesize_temperature_at_depth(self, sst: float, ssh: float, depth: int, lat: float,
+                                          region: str = "arabian_sea") -> float:
         """
-        Physics-guided thermocline reconstruction:
-        Surface layer (0-30m): Mixed Layer Depth (MLD)
-        Thermocline (50-200m): High gradient transition
-        Deep layer (300-1000m): Asymptotic cold pool (~4.5°C to 5.0°C)
+        Region-specific thermocline physics:
+        - Arabian Sea: moderate MLD (30-45m), sharp thermocline, standard profile
+        - Bay of Bengal: SHALLOW MLD (15-25m) due to salinity barrier layer blocking mixing
+        - Somali Upwelling: very cool surface, shallow MLD, compressed thermocline
+        - Equatorial IO: deep MLD (50-70m), gradual thermocline, warmest throughout
         """
         if depth == 0:
             return sst
-        
-        # Mixed layer depth variation based on SSH and latitude (typically 25m - 45m)
-        mld = 30.0 + ssh * 50.0 + 5.0 * math.sin(lat * 0.2)
-        mld = max(15.0, min(65.0, mld))
-        
-        # Deep ocean floor asymptotic baseline at 1000m
-        t_deep = 4.6 + 0.02 * (lat - 5.0)
-        
+
+        # Deep ocean floor: ~4.5°C in all basins
+        t_deep = 4.5 + 0.015 * (lat - 5.0)
+
+        if region == "somali_upwelling":
+            # Upwelling: cold surface water, very shallow compressed thermocline
+            mld = max(12.0, 18.0 + ssh * 30.0)
+            z_scale = 75.0 + ssh * 40.0   # Steep, compressed thermocline
+        elif region == "bay_of_bengal":
+            # BoB: salinity barrier layer prevents wind-mixing → very shallow MLD
+            mld = max(12.0, 20.0 + ssh * 25.0)
+            z_scale = 110.0 + ssh * 60.0  # Moderate decay; barrier layer effect
+        elif region == "equatorial_io":
+            # Equatorial: deep warm pool, very deep thermocline
+            mld = max(40.0, 60.0 + ssh * 70.0)
+            z_scale = 175.0 + ssh * 90.0  # Very gradual decay
+        else:  # arabian_sea (default)
+            # Moderate MLD, classic thermocline
+            mld = max(20.0, 32.0 + ssh * 55.0 + 4.0 * math.sin(lat * 0.2))
+            z_scale = 135.0 + ssh * 75.0
+
+        mld = min(mld, 80.0)
+
         if depth <= mld:
-            # Quasi-isothermal mixed layer
-            loss_ratio = (depth / mld) ** 1.8 * 0.08
+            loss_ratio = (depth / mld) ** 1.8 * 0.07
             temp = sst * (1.0 - loss_ratio)
         else:
-            # Thermocline decay
-            # Characteristic thermocline decay scale z_scale
-            z_scale = 130.0 + ssh * 80.0
             fraction = math.exp(-(depth - mld) / z_scale)
             temp = t_deep + (sst - t_deep) * fraction
-            
+
         return round(temp, 2)
 
     def get_surface_point(self, lat: float, lon: float, date: str) -> SurfacePoint:
@@ -303,7 +373,8 @@ class DemoDataProvider(DataProvider):
                     row.append(None)
                 else:
                     sst, _, ssh, _, _, _, _ = self._calculate_physical_surface(lat, lon)
-                    t_depth = self._synthesize_temperature_at_depth(sst, ssh, depth, lat)
+                    region = self._get_region(lat, lon)
+                    t_depth = self._synthesize_temperature_at_depth(sst, ssh, depth, lat, region)
                     row.append(t_depth)
                     valid_vals.append(t_depth)
             grid.append(row)
@@ -341,47 +412,62 @@ class DemoDataProvider(DataProvider):
                 data_source_badge=settings.DATA_SOURCE_NAME
             )
 
+        region = self._get_region(lat, lon)
         sst, sss, ssh, cur_u, cur_v, wnd_u, wnd_v = self._calculate_physical_surface(lat, lon)
-        
-        # Check for nearest ARGO float within 200 km (~1.8 deg)
+
+        # ── Region-specific ARGO float search ──────────────────────────────────
         argo_match = None
         min_dist_km = 9999.0
         for argo in self.argo_floats:
-            # Approximation 1 deg lat ~ 111 km
             d_lat = (argo.lat - lat) * 111.0
             d_lon = (argo.lon - lon) * 111.0 * math.cos(math.radians(lat))
             dist = math.hypot(d_lat, d_lon)
-            if dist < 250.0 and dist < min_dist_km:
+            if dist < 320.0 and dist < min_dist_km:
                 min_dist_km = dist
                 argo_match = argo
+
+        # ── Region-specific embedding (latent vectors differ by basin physics) ─
+        region_offsets = {
+            "arabian_sea":      [0.4, -0.9, -0.6, 0.3, -0.1, 0.2, -0.5, 0.6],
+            "bay_of_bengal":    [0.8,  0.7,  0.5, 0.9,  0.3, 0.6,  0.4, 0.2],
+            "somali_upwelling": [-0.7, -0.8, 0.2, -0.5, -0.9, 0.1, -0.3, -0.6],
+            "equatorial_io":    [0.1,  0.4,  0.8, 0.3,  0.7, 0.5,  0.9, 0.1],
+        }
+        base_offsets = region_offsets.get(region, [0.0] * 8)
+        embed_sample = [
+            round(float(
+                base_offsets[i % 8] * 0.6 +
+                math.sin(i * 0.4 + lat * 0.1) * math.cos(i * 0.2 + lon * 0.05) * 0.4
+            ), 4)
+            for i in range(16)
+        ]
 
         profile_points: List[ProfileDepthPoint] = []
         pred_list: List[float] = []
         glorys_list: List[float] = []
 
-        # Synthetic latent embedding sample (64-dim)
-        embed_sample = [
-            round(float(math.sin(i * 0.4 + lat * 0.1) * math.cos(i * 0.2 + lon * 0.05)), 4)
-            for i in range(16)
-        ]
+        # ── Region-specific thermocline depth factors ────────────────────────
+        # Uncertainty is highest in the thermocline zone — region-specific depth
+        thermocline_center = {
+            "arabian_sea": 90.0,
+            "bay_of_bengal": 60.0,   # Shallower thermocline due to barrier layer
+            "somali_upwelling": 50.0, # Very shallow compressed thermocline
+            "equatorial_io": 130.0,   # Deep warm pool, late thermocline
+        }.get(region, 90.0)
 
         for depth in self.depths:
-            # Ideal ground-truth physical profile (simulating GLORYS12V1 Reanalysis)
-            glorys_t = self._synthesize_temperature_at_depth(sst, ssh, depth, lat)
-            
-            # Neural network prediction: captures physical structure with slight realistic residual error
-            # Error is highest near thermocline (50m-150m) and lowest at surface (0m) and deep abyss (1000m)
-            depth_factor = math.exp(-((depth - 90.0) / 75.0) ** 2)
-            noise = (math.sin(depth * 0.3 + lat * 2.1) * 0.45 + 0.1) * depth_factor
+            glorys_t = self._synthesize_temperature_at_depth(sst, ssh, depth, lat, region)
+
+            # Thermocline-weighted noise
+            depth_factor = math.exp(-((depth - thermocline_center) / 70.0) ** 2)
+            noise = (math.sin(depth * 0.3 + lat * 2.1 + lon * 0.8) * 0.42 + 0.06) * depth_factor
             pred_t = round(glorys_t + noise, 2)
-            
-            # Model uncertainty envelope (higher in thermocline ~ ±0.75°C, lower at surface/abyss ~ ±0.3°C)
-            uncert = round(0.32 + 0.48 * depth_factor, 2)
+
+            uncert = round(0.30 + 0.52 * depth_factor, 2)
 
             argo_t = None
             if argo_match:
-                # ARGO independent in-situ observation: has sensor accuracy & fine-scale turbulence
-                argo_noise = (math.cos(depth * 0.4 + lon * 1.5) * 0.35) * depth_factor
+                argo_noise = (math.cos(depth * 0.4 + lon * 1.5) * 0.32) * depth_factor
                 argo_t = round(glorys_t + argo_noise, 2)
 
             profile_points.append(ProfileDepthPoint(
@@ -394,15 +480,21 @@ class DemoDataProvider(DataProvider):
             pred_list.append(pred_t)
             glorys_list.append(glorys_t)
 
-        # Compute validation metrics between Predicted and GLORYS Reference
         diffs = np.array(pred_list) - np.array(glorys_list)
         rmse = float(np.sqrt(np.mean(diffs ** 2)))
         bias = float(np.mean(diffs))
-        # Pearson correlation
         if np.std(pred_list) > 0 and np.std(glorys_list) > 0:
             corr = float(np.corrcoef(pred_list, glorys_list)[0, 1])
         else:
             corr = 0.99
+
+        # Region-specific confidence label
+        confidence_labels = {
+            "arabian_sea":      "High Confidence (±0.48°C) — Arabian Sea",
+            "bay_of_bengal":    "High Confidence (±0.41°C) — Bay of Bengal",
+            "somali_upwelling": "Moderate Confidence (±0.61°C) — Somali Upwelling",
+            "equatorial_io":    "High Confidence (±0.38°C) — Equatorial Indian Ocean",
+        }
 
         return ReconstructResponse(
             lat=lat,
@@ -423,7 +515,7 @@ class DemoDataProvider(DataProvider):
                 rmse=round(rmse, 2),
                 correlation=round(corr, 3),
                 bias=round(bias, 2),
-                confidence_level="High Confidence (±0.48°C)",
+                confidence_level=confidence_labels.get(region, "High Confidence"),
                 uncertainty_mean=round(float(np.mean([p.uncertainty for p in profile_points])), 2)
             ),
             has_argo_match=argo_match is not None,

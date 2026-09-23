@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import type { ProfileDepthPoint, ReconstructionMetrics } from '../types/ocean';
 
 interface ProfileChartProps {
@@ -19,6 +19,30 @@ export const ProfileChart: React.FC<ProfileChartProps> = ({
   uncertaintyMean
 }) => {
   const [hoveredDepth, setHoveredDepth] = useState<number | null>(null);
+
+  // Refs to measure SVG path lengths for stroke-dasharray animation
+  const predPathRef = useRef<SVGPathElement>(null);
+  const glorysPathRef = useRef<SVGPathElement>(null);
+
+  // animationKey: changes whenever profile data changes → forces CSS animation restart
+  const animationKey = profile.length > 0
+    ? `${profile[0].predicted_temp}-${profile[profile.length - 1].predicted_temp}`
+    : 'empty';
+
+  // After render, set --path-length custom property so CSS animation knows how far to draw
+  const setPredPathLength = useCallback((el: SVGPathElement | null) => {
+    if (!el) return;
+    (predPathRef as React.MutableRefObject<SVGPathElement | null>).current = el;
+    const len = el.getTotalLength();
+    el.style.setProperty('--path-length', String(Math.ceil(len)));
+  }, [animationKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const setGlorysPathLength = useCallback((el: SVGPathElement | null) => {
+    if (!el) return;
+    (glorysPathRef as React.MutableRefObject<SVGPathElement | null>).current = el;
+    const len = el.getTotalLength();
+    el.style.setProperty('--path-length', String(Math.ceil(len)));
+  }, [animationKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!profile || profile.length === 0) {
     return (
@@ -239,39 +263,52 @@ export const ProfileChart: React.FC<ProfileChartProps> = ({
             Thermocline (35–200m)
           </text>
 
-          {/* 1. Uncertainty Envelope */}
-          <polygon points={uncertPolygon} fill="url(#uncertGrad)" />
+          {/* 1. Uncertainty Envelope — fades in after curves finish */}
+          <polygon
+            key={`uncert-${animationKey}`}
+            points={uncertPolygon}
+            fill="url(#uncertGrad)"
+            className="chart-uncert-animate"
+          />
 
-          {/* 2. GLORYS Reference Curve (Emerald Dashed) */}
+          {/* 2. GLORYS Reference Curve — draws in slightly delayed */}
           <path
+            key={`glorys-${animationKey}`}
+            ref={setGlorysPathLength}
             d={glorysPath}
             fill="none"
             stroke="#10b981"
             strokeWidth="2.5"
             strokeDasharray="6,4"
+            className="chart-path-animate-glorys"
           />
 
-          {/* 3. Deep Learning Prediction Curve (Cyan Solid) */}
+          {/* 3. Deep Learning Prediction Curve — draws in first, glowing */}
           <path
+            key={`pred-${animationKey}`}
+            ref={setPredPathLength}
             d={predPath}
             fill="none"
             stroke="#0ea5e9"
             strokeWidth="3"
-            filter="drop-shadow(0 0 6px rgba(14, 165, 233, 0.5))"
+            filter="drop-shadow(0 0 8px rgba(14, 165, 233, 0.65))"
+            className="chart-path-animate"
           />
 
-          {/* 4. ARGO In-Situ Float Observations (Amber Dots) */}
+          {/* 4. ARGO In-Situ Float Observations — pop in with stagger */}
           {hasArgoMatch && argoPoints.length > 0 && (
             <g>
-              {argoPoints.map(p => (
+              {argoPoints.map((p, i) => (
                 <circle
-                  key={`argo-${p.depth}`}
+                  key={`argo-${p.depth}-${animationKey}`}
                   cx={getX(p.argo_temp!)}
                   cy={getY(p.depth)}
                   r="4.5"
                   fill="#f59e0b"
                   stroke="#ffffff"
                   strokeWidth="1.5"
+                  className="argo-dot-animate"
+                  style={{ animationDelay: `${1.0 + i * 0.07}s` }}
                 />
               ))}
             </g>

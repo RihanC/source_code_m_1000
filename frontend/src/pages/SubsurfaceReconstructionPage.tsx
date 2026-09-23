@@ -31,14 +31,20 @@ export const SubsurfaceReconstructionPage: React.FC<SubsurfaceReconstructionPage
   const [isProcessing, setIsProcessing] = useState(false);
   const [pipelineStep, setPipelineStep] = useState(6); // 6 = complete initially
 
-  // Quick preset locations
+  // Quick preset locations — one representative point per oceanographic regime
   const presets = [
-    { label: 'Arabian Sea (15.0°N, 65.0°E)', lat: 15.0, lon: 65.0 },
-    { label: 'Bay of Bengal (14.0°N, 88.0°E)', lat: 14.0, lon: 88.0 },
-    { label: 'Equatorial Warm Pool (7.0°N, 78.0°E)', lat: 7.0, lon: 78.0 },
-    { label: 'Somali Upwelling (10.0°N, 53.0°E)', lat: 10.0, lon: 53.0 },
-    { label: 'Near ARGO Float 2902145 (14.2°N, 65.4°E)', lat: 14.2, lon: 65.4 },
+    { label: 'Arabian Sea — High Salinity (15.0°N, 65.0°E)',       lat: 15.0, lon: 65.0 },
+    { label: 'Bay of Bengal — Low Salinity Plume (14.0°N, 88.0°E)', lat: 14.0, lon: 88.0 },
+    { label: 'Somali Upwelling Zone (10.5°N, 53.5°E)',              lat: 10.5, lon: 53.5 },
+    { label: 'Equatorial Indian Ocean — Wyrtki Jet (6.5°N, 75.0°E)',lat: 6.5,  lon: 75.0 },
+    { label: 'Northern BoB — River Plume (20.0°N, 88.0°E)',         lat: 20.0, lon: 88.0 },
+    { label: 'Near ARGO Float INCOIS-ARGO-01 (14.2°N, 65.4°E)',     lat: 14.2, lon: 65.4 },
+    { label: 'Near ARGO Float INCOIS-ARGO-02 (11.5°N, 87.2°E)',     lat: 11.5, lon: 87.2 },
   ];
+
+  // Keep dropdown in sync with external lat/lon
+  const currentPresetValue = `${selectedLat},${selectedLon}`;
+  const matchedPreset = presets.find(p => p.lat === selectedLat && p.lon === selectedLon);
 
   const runReconstructionPipeline = async (lat: number, lon: number, date: string) => {
     setIsProcessing(true);
@@ -93,6 +99,7 @@ export const SubsurfaceReconstructionPage: React.FC<SubsurfaceReconstructionPage
         {/* Location Presets & Trigger */}
         <div className="flex flex-wrap items-center gap-2">
           <select
+            value={matchedPreset ? currentPresetValue : `${selectedLat},${selectedLon}`}
             onChange={(e) => {
               const [latStr, lonStr] = e.target.value.split(',');
               const newLat = parseFloat(latStr);

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 
 import { Ocean3DViewer } from '../components/Ocean3D/Ocean3DViewer';
+import { OceanWaveDivider } from '../components/OceanWaveDivider';
 
 interface LandingPageProps {
   onNavigate: (tab: string) => void;
@@ -146,6 +147,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
         </div>
       </div>
 
+      {/* ═══ Animated Wave Divider ═══ */}
+      <OceanWaveDivider />
+
       {/* ═══════════════════════════════════════
           STATS STRIP
           ═══════════════════════════════════════ */}
@@ -156,32 +160,36 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
             value: '15 Depths',
             sub: '0, 5, 10, 20, 30, 50, 75, 100, 125, 150, 200, 300, 500, 700, 1000 m',
             accent: 'border-l-cyan-400',
+            revealClass: 'stat-reveal stat-reveal-1',
           },
           {
             label: 'Spatial Resolution',
             value: '0.25° × 0.25°',
             sub: 'High-res gridded mesoscale ocean features',
             accent: 'border-l-sky-400',
+            revealClass: 'stat-reveal stat-reveal-2',
           },
           {
             label: 'Temporal Frequency',
             value: 'Daily Updates',
             sub: 'Harmonized daily satellite observations',
             accent: 'border-l-blue-400',
+            revealClass: 'stat-reveal stat-reveal-3',
           },
           {
             label: 'Geographic Coverage',
             value: 'North Indian Ocean',
             sub: '5.0°N to 30.0°N • 45.0°E to 105.0°E',
             accent: 'border-l-indigo-400',
+            revealClass: 'stat-reveal stat-reveal-4',
           },
         ].map((stat) => (
           <div
             key={stat.label}
-            className={`ocean-card p-5 border-l-4 ${stat.accent} hover:scale-[1.01]`}
+            className={`ocean-card p-5 border-l-4 ${stat.accent} hover:scale-[1.01] ${stat.revealClass}`}
           >
             <div className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-2">{stat.label}</div>
-            <div className="text-2xl font-extrabold text-white font-mono leading-tight">{stat.value}</div>
+            <div className="text-2xl font-extrabold font-mono leading-tight value-shimmer">{stat.value}</div>
             <div className="text-[11px] text-slate-500 mt-1.5 leading-relaxed">{stat.sub}</div>
           </div>
         ))}
@@ -192,7 +200,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
           ═══════════════════════════════════════ */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Problem */}
-        <div className="ocean-card p-7 space-y-4 border-t-2 border-t-rose-500/60">
+        <div className="ocean-card p-7 space-y-4 border-t-2 border-t-rose-500/60 card-entrance card-entrance-1">
           <div className="flex items-center gap-3 text-rose-400">
             <div className="w-10 h-10 rounded-xl bg-rose-950/50 border border-rose-700/50 flex items-center justify-center">
               <Activity size={20} />
@@ -217,7 +225,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
         </div>
 
         {/* Solution */}
-        <div className="ocean-card p-7 space-y-4 border-t-2 border-t-cyan-500/60">
+        <div className="ocean-card p-7 space-y-4 border-t-2 border-t-cyan-500/60 card-entrance card-entrance-2">
           <div className="flex items-center gap-3 text-cyan-400">
             <div className="w-10 h-10 rounded-xl bg-cyan-950/50 border border-cyan-700/50 flex items-center justify-center">
               <ShieldCheck size={20} />
@@ -245,7 +253,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
       {/* ═══════════════════════════════════════
           DATA PIPELINE OVERVIEW
           ═══════════════════════════════════════ */}
-      <div className="ocean-card p-7 space-y-5">
+      <div className="ocean-card p-7 space-y-5 card-entrance card-entrance-3">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-sm font-bold text-white flex items-center gap-2">

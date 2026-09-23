@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import { Header } from './components/Header';
 import { PresentationBanner } from './components/PresentationBanner';
+import { OceanParticles } from './components/OceanParticles';
 import { LandingPage } from './pages/LandingPage';
 import { OceanExplorerPage } from './pages/OceanExplorerPage';
 import { SubsurfaceReconstructionPage } from './pages/SubsurfaceReconstructionPage';
@@ -36,6 +37,9 @@ export const App: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#050c18] text-slate-100 selection:bg-cyan-500/40 selection:text-white relative overflow-x-hidden">
+
+      {/* ── Bioluminescent Particle Background ── */}
+      <OceanParticles />
 
       {/* ── Dynamic Ambient Background Glows ── */}
       <div className="ocean-glow-1 fixed top-0 left-1/4 w-[700px] h-[700px] bg-cyan-600/[0.07] rounded-full blur-[160px] pointer-events-none -z-10" />

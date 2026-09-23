@@ -336,9 +336,14 @@ export const OceanExplorerPage: React.FC<OceanExplorerPageProps> = ({
               Basin Dynamic Context
             </h4>
             <p className="text-[11px] leading-relaxed text-slate-400 font-light">
-              {selectedLon < 77.5
-                ? 'Arabian Sea: Characterized by strong evaporative high salinity (~36.5 PSU), seasonal upwelling along western boundaries, and active mesoscale eddy fields.'
-                : 'Bay of Bengal: Governed by massive river discharge (Ganges, Brahmaputra) producing low-salinity surface plumes (~31-33 PSU) and stable barrier layers.'}
+              {selectedLon < 60.0 && selectedLat >= 5.0 && selectedLat <= 18.0
+                ? 'Somali Upwelling Zone: Driven by the intense SW monsoon Somali Jet (~12–15 m/s). Coastal divergence upwells cold, nutrient-rich deep water (SST 22–26°C), one of the world\'s most energetic upwelling systems.'
+                : selectedLon < 77.5
+                  ? 'Arabian Sea: Characterized by strong evaporative high salinity (~36.5 PSU), seasonal upwelling along western boundaries, and active mesoscale eddy fields. SSH anomalies tightly coupled to thermocline depth variations.'
+                  : selectedLat < 8.0
+                    ? 'Equatorial Indian Ocean: Home to the Wyrtki Jet — a powerful eastward equatorial current during monsoon transitions. Deepest thermocline (~130–180m), warmest sea surface temperatures (29–31°C), and largest SSH signal.'
+                    : 'Bay of Bengal: Governed by massive river discharge (Ganges, Brahmaputra) producing low-salinity surface plumes (~29–33 PSU). Salinity barrier layer suppresses mixing → very shallow mixed layer depth (15–25m) and warm stable surface pool.'
+              }
             </p>
           </div>
         </div>
