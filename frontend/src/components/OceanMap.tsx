@@ -20,7 +20,7 @@ export const OceanMap: React.FC<OceanMapProps> = ({
   showArgoLayer = true
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [hoverInfo, setHoverInfo] = useState<{ lat: number; lon: number; val: number | null } | null>(null);
+  const [hoverInfo, setHoverInfo] = useState<{ lat: number; lon: number; val: number | null; x: number; y: number } | null>(null);
 
   // Geographic bounds
   const LAT_MIN = 5.0;
@@ -219,8 +219,14 @@ export const OceanMap: React.FC<OceanMapProps> = ({
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * canvas.width;
-    const y = ((e.clientY - rect.top) / rect.height) * canvas.height;
+    
+    // Physical pixels in the DOM
+    const rawX = e.clientX - rect.left;
+    const rawY = e.clientY - rect.top;
+    
+    // Canvas internal pixels
+    const x = (rawX / rect.width) * canvas.width;
+    const y = (rawY / rect.height) * canvas.height;
 
     const { lat, lon } = pixelToGeo(x, y, canvas.width, canvas.height);
 
@@ -233,7 +239,7 @@ export const OceanMap: React.FC<OceanMapProps> = ({
       }
     }
 
-    setHoverInfo({ lat, lon, val });
+    setHoverInfo({ lat, lon, val, x: rawX, y: rawY });
   };
 
   return (
@@ -269,7 +275,7 @@ export const OceanMap: React.FC<OceanMapProps> = ({
       </div>
 
       {/* Main Canvas Container */}
-      <div className="relative cursor-crosshair group">
+      <div className="relative cursor-crosshair group overflow-hidden">
         <canvas
           ref={canvasRef}
           width={900}
@@ -280,24 +286,50 @@ export const OceanMap: React.FC<OceanMapProps> = ({
           className="w-full h-auto block"
         />
 
-        {/* Floating Probe Coordinate HUD */}
+        {/* Interactive Crosshair & Following Tooltip */}
         {hoverInfo && (
-          <div className="absolute top-3 right-3 glass-panel px-3 py-1.5 rounded-md text-xs font-mono text-slate-200 pointer-events-none shadow-lg border border-cyan-500/30">
-            <div className="flex items-center gap-2">
-              <span className="text-cyan-400">{hoverInfo.lat.toFixed(2)}°N</span>
-              <span className="text-slate-500">•</span>
-              <span className="text-cyan-400">{hoverInfo.lon.toFixed(2)}°E</span>
-              {hoverInfo.val !== null ? (
-                <>
-                  <span className="text-slate-500">•</span>
-                  <span className="text-emerald-300 font-semibold">{hoverInfo.val} {gridData?.units}</span>
-                </>
-              ) : (
-                <>
-                  <span className="text-slate-500">•</span>
-                  <span className="text-slate-400 italic">Land Mask</span>
-                </>
-              )}
+          <div className="absolute inset-0 pointer-events-none">
+            {/* Horizontal Line */}
+            <div 
+              className="absolute left-0 right-0 h-px bg-cyan-400/30"
+              style={{ top: hoverInfo.y }}
+            />
+            {/* Vertical Line */}
+            <div 
+              className="absolute top-0 bottom-0 w-px bg-cyan-400/30"
+              style={{ left: hoverInfo.x }}
+            />
+            {/* Center Glowing Dot */}
+            <div 
+              className="absolute w-1.5 h-1.5 bg-cyan-300 rounded-full shadow-[0_0_8px_#06b6d4] transform -translate-x-1/2 -translate-y-1/2"
+              style={{ left: hoverInfo.x, top: hoverInfo.y }}
+            />
+            
+            {/* Tooltip Card Following Cursor */}
+            <div 
+              className="absolute z-10 glass-panel px-3 py-2 rounded-md text-[11px] font-mono text-slate-200 pointer-events-none shadow-xl border border-cyan-500/30 whitespace-nowrap transform -translate-y-[120%] -translate-x-1/2"
+              style={{ left: hoverInfo.x, top: hoverInfo.y }}
+            >
+              <div className="flex flex-col gap-1">
+                <div className="flex justify-between gap-4 border-b border-cyan-900/40 pb-1 mb-1">
+                  <span className="text-slate-400">Target</span>
+                  <span className="text-cyan-400">{hoverInfo.lat.toFixed(2)}°N, {hoverInfo.lon.toFixed(2)}°E</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {hoverInfo.val !== null ? (
+                    <>
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]" />
+                      <span className="text-slate-400">Data:</span>
+                      <span className="text-emerald-300 font-bold">{hoverInfo.val} {gridData?.units}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_6px_#f43f5e]" />
+                      <span className="text-rose-400 font-semibold italic">Land Mask</span>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}

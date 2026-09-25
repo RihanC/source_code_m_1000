@@ -12,6 +12,8 @@ export const EmbeddingPage: React.FC = () => {
   const [embeddingsData, setEmbeddingsData] = useState<EmbeddingsResponse | null>(null);
   const [selectedCluster, setSelectedCluster] = useState<string>('all');
   const [selectedPoint, setSelectedPoint] = useState<EmbeddingPoint2D | null>(null);
+  const [hoveredPoint, setHoveredPoint] = useState<EmbeddingPoint2D | null>(null);
+  const [hoverPos, setHoverPos] = useState({ x: 0, y: 0 });
   const [activeArchLayer, setActiveArchLayer] = useState<string>('embedding');
 
   useEffect(() => {
@@ -20,6 +22,7 @@ export const EmbeddingPage: React.FC = () => {
       .catch(err => console.error('Failed to load embeddings:', err));
   }, []);
 
+  // ... (archLayers omitted for brevity, keep existing up to clusterColors) ...
   const archLayers = [
     {
       id: 'input',
@@ -82,6 +85,8 @@ export const EmbeddingPage: React.FC = () => {
     'DynamicEddyField': '#38bdf8'
   };
 
+  const clusterKeys = Object.keys(clusterColors);
+
   const filteredPoints = embeddingsData
     ? selectedCluster === 'all'
       ? embeddingsData.points
@@ -104,7 +109,7 @@ export const EmbeddingPage: React.FC = () => {
       {/* 2D EMBEDDING PROJECTION SECTION */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Scatter Plot Visualizer (7 cols) */}
-        <div className="lg:col-span-7 ocean-card p-5 space-y-3">
+        <div className="lg:col-span-7 ocean-card p-5 space-y-3 relative">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#1a3254] pb-3">
             <div>
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
@@ -135,7 +140,12 @@ export const EmbeddingPage: React.FC = () => {
           </div>
 
           {/* 2D Canvas / SVG Scatter View */}
-          <div className="relative flex justify-center py-2">
+          <div className="relative flex justify-center py-2"
+               onMouseMove={(e) => {
+                 const rect = e.currentTarget.getBoundingClientRect();
+                 setHoverPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+               }}
+          >
             <svg width={500} height={340} className="bg-[#081324] rounded-lg border border-[#142848] select-none">
               {/* Axes */}
               <line x1={250} y1={20} x2={250} y2={320} stroke="#142848" strokeDasharray="3,3" />
@@ -149,32 +159,62 @@ export const EmbeddingPage: React.FC = () => {
               </text>
 
               {/* Scatter Points */}
-              {filteredPoints.map((p) => {
+              {filteredPoints.map((p, i) => {
                 // Map coordinates: X range [-3.5, 3.5] -> [40, 460]; Y range [-3, 3.5] -> [310, 30]
                 const cx = 250 + (p.x / 3.5) * 210;
                 const cy = 170 - (p.y / 3.5) * 140;
                 const isSelected = selectedPoint?.id === p.id;
+                const isHovered = hoveredPoint?.id === p.id;
                 const color = clusterColors[p.cluster] || '#0ea5e9';
+                
+                // Base delay on cluster index to create staggered reveal
+                const clusterIdx = clusterKeys.indexOf(p.cluster);
+                const delay = (clusterIdx * 0.15) + (i % 5) * 0.02;
 
                 return (
                   <g
                     key={p.id}
-                    className="cursor-pointer"
+                    className="cursor-pointer argo-dot-animate"
+                    style={{ animationDelay: `${delay}s` }}
                     onClick={() => setSelectedPoint(p)}
+                    onMouseEnter={() => setHoveredPoint(p)}
+                    onMouseLeave={() => setHoveredPoint(null)}
                   >
                     <circle
                       cx={cx}
                       cy={cy}
-                      r={isSelected ? 7 : 4}
+                      r={isSelected || isHovered ? 7 : 4}
                       fill={color}
-                      stroke={isSelected ? '#ffffff' : 'rgba(0,0,0,0.4)'}
-                      strokeWidth={isSelected ? 2 : 1}
+                      stroke={isSelected || isHovered ? '#ffffff' : 'rgba(0,0,0,0.4)'}
+                      strokeWidth={isSelected || isHovered ? 2 : 1}
                       opacity={0.85}
                     />
+                    <circle cx={cx} cy={cy} r="12" fill="transparent" />
                   </g>
                 );
               })}
             </svg>
+            
+            {/* Hover Tooltip Card */}
+            {hoveredPoint && (
+              <div 
+                className="absolute z-10 glass-panel p-2.5 rounded-lg border border-cyan-500/40 text-xs shadow-xl pointer-events-none transform -translate-x-1/2 -translate-y-full mt-[-10px]"
+                style={{ left: hoverPos.x, top: hoverPos.y }}
+              >
+                <div className="font-bold text-white border-b border-slate-700 pb-1 mb-1.5 flex flex-col">
+                  <span style={{ color: clusterColors[hoveredPoint.cluster] }}>{hoveredPoint.cluster}</span>
+                  <span className="text-[10px] text-slate-400 font-mono">{hoveredPoint.basin}</span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-slate-400">SST:</span>
+                  <strong className="text-cyan-300">{hoveredPoint.sst} °C</strong>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-slate-400">MLD:</span>
+                  <strong className="text-teal-300">{hoveredPoint.mld} m</strong>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Cluster Legend */}

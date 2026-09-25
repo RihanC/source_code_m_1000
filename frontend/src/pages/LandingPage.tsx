@@ -161,6 +161,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
             sub: '0, 5, 10, 20, 30, 50, 75, 100, 125, 150, 200, 300, 500, 700, 1000 m',
             accent: 'border-l-cyan-400',
             revealClass: 'stat-reveal stat-reveal-1',
+            sparkline: (
+              <svg className="mt-3 w-full h-8" viewBox="0 0 100 24" preserveAspectRatio="none">
+                <path d="M0,24 L10,12 L20,20 L30,8 L40,16 L50,4 L60,18 L70,6 L80,14 L90,2 L100,10" fill="none" stroke="#06b6d4" strokeWidth="2" className="chart-path-animate" style={{ '--path-length': '200' } as React.CSSProperties} />
+                <path d="M0,24 L10,12 L20,20 L30,8 L40,16 L50,4 L60,18 L70,6 L80,14 L90,2 L100,10 L100,24 L0,24 Z" fill="url(#sparkGradCyan)" opacity="0.3" />
+                <defs>
+                  <linearGradient id="sparkGradCyan" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.8" />
+                    <stop offset="100%" stopColor="#06b6d4" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            ),
           },
           {
             label: 'Spatial Resolution',
@@ -168,6 +180,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
             sub: 'High-res gridded mesoscale ocean features',
             accent: 'border-l-sky-400',
             revealClass: 'stat-reveal stat-reveal-2',
+            sparkline: (
+              <svg className="mt-3 w-full h-8" viewBox="0 0 100 24" preserveAspectRatio="none">
+                <pattern id="gridPattern" width="10" height="10" patternUnits="userSpaceOnUse">
+                  <circle cx="2" cy="2" r="1.5" fill="#38bdf8" opacity="0.6" className="argo-dot-animate" />
+                </pattern>
+                <rect width="100%" height="100%" fill="url(#gridPattern)" />
+              </svg>
+            ),
           },
           {
             label: 'Temporal Frequency',
@@ -175,6 +195,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
             sub: 'Harmonized daily satellite observations',
             accent: 'border-l-blue-400',
             revealClass: 'stat-reveal stat-reveal-3',
+            sparkline: (
+              <svg className="mt-3 w-full h-8" viewBox="0 0 100 24" preserveAspectRatio="none">
+                <rect x="5" y="12" width="10" height="12" fill="#60a5fa" rx="2" className="card-entrance" style={{ animationDelay: '0.1s' }} />
+                <rect x="25" y="8" width="10" height="16" fill="#3b82f6" rx="2" className="card-entrance" style={{ animationDelay: '0.2s' }} />
+                <rect x="45" y="4" width="10" height="20" fill="#2563eb" rx="2" className="card-entrance" style={{ animationDelay: '0.3s' }} />
+                <rect x="65" y="10" width="10" height="14" fill="#3b82f6" rx="2" className="card-entrance" style={{ animationDelay: '0.4s' }} />
+                <rect x="85" y="16" width="10" height="8" fill="#60a5fa" rx="2" className="card-entrance" style={{ animationDelay: '0.5s' }} />
+              </svg>
+            ),
           },
           {
             label: 'Geographic Coverage',
@@ -182,6 +211,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
             sub: '5.0°N to 30.0°N • 45.0°E to 105.0°E',
             accent: 'border-l-indigo-400',
             revealClass: 'stat-reveal stat-reveal-4',
+            sparkline: (
+              <svg className="mt-3 w-full h-8" viewBox="0 0 100 24" preserveAspectRatio="none">
+                <path d="M10,20 C30,20 20,5 50,5 C80,5 70,20 90,20" fill="none" stroke="#818cf8" strokeWidth="2.5" strokeDasharray="4,4" className="chart-path-animate" style={{ '--path-length': '150' } as React.CSSProperties} />
+                <circle cx="50" cy="5" r="3" fill="#c084fc" className="argo-dot-animate" style={{ animationDelay: '0.5s' }} />
+              </svg>
+            ),
           },
         ].map((stat) => (
           <div
@@ -190,7 +225,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
           >
             <div className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-2">{stat.label}</div>
             <div className="text-2xl font-extrabold font-mono leading-tight value-shimmer">{stat.value}</div>
-            <div className="text-[11px] text-slate-500 mt-1.5 leading-relaxed">{stat.sub}</div>
+            <div className="text-[11px] text-slate-500 mt-1.5 leading-relaxed h-[34px] overflow-hidden">{stat.sub}</div>
+            {stat.sparkline}
           </div>
         ))}
       </div>

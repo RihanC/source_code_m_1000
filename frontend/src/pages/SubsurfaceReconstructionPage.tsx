@@ -3,6 +3,7 @@ import { reconstructSubsurface } from '../services/api';
 import type { ReconstructResponse } from '../types/ocean';
 import { ProfileChart } from '../components/ProfileChart';
 import { ProcessingPipeline } from '../components/ProcessingPipeline';
+import { Ocean3DView } from '../components/Ocean3DView';
 import { 
   Play, 
   MapPin, 
@@ -179,6 +180,9 @@ export const SubsurfaceReconstructionPage: React.FC<SubsurfaceReconstructionPage
                 This latent vector represents the compressed oceanic state derived from surface SST, SSS, SSH, currents, and winds.
               </div>
             </div>
+
+            {/* Bonus 3D Isometric View */}
+            <Ocean3DView profile={reconstruction.profile} />
           </div>
 
           {/* Right Column: 15-Depth Table & Surface Conditions (5 cols) */}
@@ -223,10 +227,10 @@ export const SubsurfaceReconstructionPage: React.FC<SubsurfaceReconstructionPage
               </div>
 
               <div className="max-h-72 overflow-y-auto pr-1">
-                <table className="w-full text-xs text-left">
+                <table className="w-full text-xs text-left border-collapse">
                   <thead>
                     <tr className="text-[10px] text-slate-400 uppercase border-b border-[#142848] font-mono">
-                      <th className="py-1.5">Depth</th>
+                      <th className="py-1.5 pl-3">Depth</th>
                       <th className="py-1.5 text-cyan-400">Predicted</th>
                       <th className="py-1.5 text-emerald-400">GLORYS</th>
                       <th className="py-1.5 text-amber-400">ARGO</th>
@@ -234,17 +238,28 @@ export const SubsurfaceReconstructionPage: React.FC<SubsurfaceReconstructionPage
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#142848] font-mono">
-                    {reconstruction.profile.map((p) => (
-                      <tr key={p.depth} className="hover:bg-[#0c1c33]">
-                        <td className="py-1.5 text-slate-300 font-semibold">{p.depth} m</td>
-                        <td className="py-1.5 text-cyan-300 font-bold">{p.predicted_temp}°C</td>
-                        <td className="py-1.5 text-emerald-400">{p.glorys_temp}°C</td>
-                        <td className="py-1.5 text-amber-400">
-                          {p.argo_temp !== null ? `${p.argo_temp}°C` : '—'}
-                        </td>
-                        <td className="py-1.5 text-slate-400">±{p.uncertainty}</td>
-                      </tr>
-                    ))}
+                    {reconstruction.profile.map((p) => {
+                      // Map temp (2°C - 30°C) to hue (240 Blue - 0 Red)
+                      const hue = Math.max(0, 240 - ((Math.min(32, Math.max(2, p.predicted_temp)) - 2) / 30) * 240);
+                      return (
+                        <tr key={p.depth} className="hover:bg-[#0c1c33] relative">
+                          <td className="py-1.5 pl-3 text-slate-300 font-semibold relative">
+                            {/* Color Bar Stripe */}
+                            <div 
+                              className="absolute left-0 top-0 bottom-0 w-1 rounded-r-sm"
+                              style={{ backgroundColor: `hsl(${hue}, 85%, 55%)` }}
+                            />
+                            {p.depth} m
+                          </td>
+                          <td className="py-1.5 text-cyan-300 font-bold">{p.predicted_temp}°C</td>
+                          <td className="py-1.5 text-emerald-400">{p.glorys_temp}°C</td>
+                          <td className="py-1.5 text-amber-400">
+                            {p.argo_temp !== null ? `${p.argo_temp}°C` : '—'}
+                          </td>
+                          <td className="py-1.5 text-slate-400">±{p.uncertainty}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

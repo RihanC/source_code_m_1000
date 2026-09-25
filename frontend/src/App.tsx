@@ -80,11 +80,11 @@ export const App: React.FC = () => {
 
       {/* ── Main Page Body ── */}
       <main className="flex-1 pb-12">
-        {currentTab === 'landing' && (
+        <div className={currentTab === 'landing' ? 'block' : 'hidden'}>
           <LandingPage onNavigate={(tab) => setCurrentTab(tab)} />
-        )}
+        </div>
 
-        {currentTab === 'explorer' && (
+        <div className={currentTab === 'explorer' ? 'block' : 'hidden'}>
           <OceanExplorerPage
             selectedLat={selectedLat}
             selectedLon={selectedLon}
@@ -92,22 +92,28 @@ export const App: React.FC = () => {
             setSelectedLon={setSelectedLon}
             onTriggerReconstruction={handleTriggerReconstruction}
           />
-        )}
+        </div>
 
-        {currentTab === 'reconstruct' && (
+        <div className={currentTab === 'reconstruct' ? 'block' : 'hidden'}>
           <SubsurfaceReconstructionPage
             selectedLat={selectedLat}
             selectedLon={selectedLon}
             setSelectedLat={setSelectedLat}
             setSelectedLon={setSelectedLon}
           />
-        )}
+        </div>
 
-        {currentTab === 'embedding' && <EmbeddingPage />}
+        <div className={currentTab === 'embedding' ? 'block' : 'hidden'}>
+          <EmbeddingPage />
+        </div>
 
-        {currentTab === 'validation' && <ValidationPage />}
+        <div className={currentTab === 'validation' ? 'block' : 'hidden'}>
+          <ValidationPage />
+        </div>
 
-        {currentTab === 'about' && <AboutMethodologyPage />}
+        <div className={currentTab === 'about' ? 'block' : 'hidden'}>
+          <AboutMethodologyPage />
+        </div>
       </main>
 
       {/* ── Clean Glassmorphic Footer ── */}

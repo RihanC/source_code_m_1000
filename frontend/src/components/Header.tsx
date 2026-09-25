@@ -47,11 +47,19 @@ export const Header: React.FC<HeaderProps> = ({
                 <button
                   key={tab.id}
                   onClick={() => setCurrentTab(tab.id)}
-                  className={`px-3.5 py-2 rounded-xl text-[11px] font-semibold transition-all duration-250 flex items-center gap-1.5 relative shrink-0 ${
+                  className={`px-3.5 py-2 rounded-xl text-[11px] font-semibold transition-all duration-300 flex items-center gap-1.5 relative shrink-0 ${
                     isActive
-                      ? 'bg-gradient-to-r from-cyan-500/20 to-blue-600/20 text-cyan-300 border border-cyan-400/35 shadow-[0_0_14px_rgba(6,182,212,0.2)]'
+                      ? 'text-cyan-300 border border-cyan-400/40'
                       : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent'
                   }`}
+                  style={
+                    isActive
+                      ? {
+                          background: 'linear-gradient(90deg, rgba(6,182,212,0.25), rgba(14,165,233,0.15))',
+                          boxShadow: '0 0 20px rgba(6,182,212,0.35), 0 0 40px rgba(6,182,212,0.1)',
+                        }
+                      : {}
+                  }
                 >
                   <Icon
                     size={13}
@@ -61,9 +69,6 @@ export const Header: React.FC<HeaderProps> = ({
                   <span className="lg:hidden">
                     {tab.label.split(' ')[0]}
                   </span>
-                  {isActive && (
-                    <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-[2px] bg-cyan-400 rounded-full shadow-[0_0_6px_#06b6d4]" />
-                  )}
                 </button>
               );
             })}
